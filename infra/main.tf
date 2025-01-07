@@ -16,7 +16,6 @@ terraform {
   }
 }
 
-
 provider "aws" {
   region  = var.aws_region
 }
@@ -24,19 +23,14 @@ provider "aws" {
 # Cria VPC
 module "vpc" {
   source                = "./modules/vpc"
-  vpc_name              = var.vpc_name
-  vpc_cidr              = var.vpc_cidr
-  az_count              = var.az_count
-  public_subnet_cidrs  = var.public_subnet_cidrs
-  private_subnet_cidrs = var.private_subnet_cidrs
-  enable_dns_hostnames = var.enable_dns_hostnames
-  enable_dns_support   = var.enable_dns_support
-  tags                  = var.tags
+  vpc_cidr_block        = var.vpc_cidr_block
+  public_subnets_cidrs  = var.public_subnets_cidrs
+  private_subnets_cidrs = var.private_subnets_cidrs
 }
 
 # Security Group do ALB
 resource "aws_security_group" "alb_sg" {
-  name        = "${var.application_name}-alb-sg"
+  name        = "alb-sg"
   description = "SG do ALB"
   vpc_id      = module.vpc.vpc_id
 
@@ -54,13 +48,11 @@ resource "aws_security_group" "alb_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = var.tags
 }
 
 # Security Group do ECS Service
 resource "aws_security_group" "ecs_service_sg" {
-  name        = "${var.application_name}-ecs-service-sg"
+  name        = "ecs-service-sg"
   description = "SG do ECS Service"
   vpc_id      = module.vpc.vpc_id
 
@@ -78,8 +70,6 @@ resource "aws_security_group" "ecs_service_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
-  tags = var.tags
 }
 
 module "cw_logs" {
@@ -90,13 +80,12 @@ module "cw_logs" {
 
 module "alb" {
   source             = "./modules/alb"
-  name               = "${var.application_name}-alb"
+  name_prefix        = var.application_name
   vpc_id             = module.vpc.vpc_id
-  subnets            = module.vpc.public_subnets
+  subnet_ids         = module.vpc.public_subnets
+  health_check_path  = "/actuator/health"
+  target_port        = var.container_port
   security_groups    = [aws_security_group.alb_sg.id]
-  port               = var.container_port
-  #health_check_path  = "/actuator/health" # Remova se não for usar
-  #target_port        = var.container_port # Remova se não for usar
 }
 
 module "ecr" {
@@ -120,7 +109,7 @@ module "ecs" {
   vpc_id                  = module.vpc.vpc_id
   subnet_ids              = module.vpc.private_subnets
   security_groups         = [aws_security_group.ecs_service_sg.id]
-#  alb_target_group_arn    = module.alb.target_group_arn
+  alb_target_group_arn    = module.alb.target_group_arn
   cpu_utilization_target  = var.cpu_utilization_target
   region                  = var.aws_region
 }

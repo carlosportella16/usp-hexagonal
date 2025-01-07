@@ -39,7 +39,6 @@ resource "aws_ecs_task_definition" "this" {
       portMappings = [
         {
           containerPort = var.container_port
-          hostPort      = var.container_port
         }
       ]
       logConfiguration = {
