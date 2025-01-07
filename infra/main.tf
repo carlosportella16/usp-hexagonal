@@ -73,7 +73,7 @@ module "alb" {
   source            = "./modules/alb"
   name_prefix       = var.application_name
   vpc_id            = module.vpc.vpc_id
-  subnet_ids        = distinct(module.vpc.public_subnets)
+  subnet_ids        = slice(module.vpc.public_subnets, 0, length(module.vpc.public_subnets))
   health_check_path = "/actuator/health"
   target_port       = var.container_port
   security_groups   = [aws_security_group.alb_sg.id]
@@ -98,7 +98,7 @@ module "ecs" {
   container_port          = var.container_port
   log_group_name          = "${var.application_name}-logs"
   vpc_id                  = module.vpc.vpc_id
-  subnet_ids              = module.vpc.private_subnets
+  subnet_ids              = slice(module.vpc.private_subnets, 0, length(module.vpc.private_subnets))
   security_groups         = [aws_security_group.ecs_service_sg.id]
   alb_target_group_arn    = module.alb.target_group_arn
   cpu_utilization_target  = var.cpu_utilization_target
