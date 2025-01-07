@@ -48,6 +48,27 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
+resource "aws_security_group" "ecs_service_sg" {
+  name        = "ecs-service-sg"
+  description = "SG do ECS Service"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description     = "Inbound do ALB na porta 8080"
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 module "alb" {
   source            = "./modules/alb"
   name_prefix       = var.application_name
@@ -78,7 +99,7 @@ module "ecs" {
   log_group_name          = "${var.application_name}-logs"
   vpc_id                  = module.vpc.vpc_id
   subnet_ids              = module.vpc.private_subnets
-  security_groups         = [aws_security_group.alb_sg.id]
+  security_groups         = [aws_security_group.ecs_service_sg.id]
   alb_target_group_arn    = module.alb.target_group_arn
   cpu_utilization_target  = var.cpu_utilization_target
   region                  = var.aws_region
