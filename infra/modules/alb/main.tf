@@ -8,7 +8,7 @@ resource "random_string" "tg_suffix" {
 resource "aws_lb" "this" {
   name               = "${var.name_prefix}-alb"
   load_balancer_type = "application"
-  subnets            = var.subnet_ids
+  subnets            = distinct(var.subnet_ids) # Garante que as subnets sejam únicas
   security_groups    = var.security_groups
 
   tags = {
