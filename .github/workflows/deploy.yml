@@ -1,0 +1,116 @@
+name: Deploy Terraform,  Docker and SonarQube
+
+on:
+  push:
+    branches:
+      - main2
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: "sa-east-1"
+  TF_VAR_aws_region: "sa-east-1"
+
+jobs:
+  terraform:
+    name: Provision Infrastructure with Terraform
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Fazer checkout do código
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # 2. Configurar o AWS CLI
+      - name: Configure AWS CLI
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      # 3. Instalar Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
+
+      # 4. Inicializar Terraform
+      - name: Terraform Init
+        run: terraform init
+        working-directory: infra
+
+      # 5. Planejar Infraestrutura
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        working-directory: infra
+
+      # 6. Aplicar Infraestrutura
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        working-directory: infra
+
+  docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    needs: terraform # Garante que o Terraform finalize antes do Docker
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS CLI
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: List Files
+        run: ls -R
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/app-hexagonal:latest -f api-test/Dockerfile app/
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+      - name: Push Docker Image to ECR
+        run: |
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/app-hexagonal:latest
+
+  sonarqube:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    needs: docker
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          java-version: '11'
+
+      - name: Set up SonarQube Scanner
+        uses: SonarSource/sonarcloud-github-action@v2
+        with:
+          host-url: ${{ env.SONAR_HOST_URL }}
+          token: ${{ env.SONAR_TOKEN }}
+
+      - name: Run SonarQube Analysis
+        run: |
+          sonar-scanner \
+            -Dsonar.projectKey=${{ env.SONAR_PROJECT_KEY }} \
+            -Dsonar.host.url=${{ env.SONAR_HOST_URL }} \
+            -Dsonar.login=${{ env.SONAR_TOKEN }} \
+            -Dsonar.coverage.jacoco.xmlReportPaths=build/reports/jacoco/test/jacocoTestReport.xml \
+            -Dsonar.java.binaries=build/classes/java/main
+
+      - name: Post Analysis Results
+        run: echo "SonarQube Analysis Complete"
