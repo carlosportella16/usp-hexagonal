@@ -3,7 +3,7 @@ name: Deploy Terraform,  Docker and SonarQube
 on:
   push:
     branches:
-      - main2
+      - main
 
 permissions:
   contents: read
