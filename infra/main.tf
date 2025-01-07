@@ -120,7 +120,7 @@ module "ecs" {
   vpc_id                  = module.vpc.vpc_id
   subnet_ids              = module.vpc.private_subnets
   security_groups         = [aws_security_group.ecs_service_sg.id]
-  alb_target_group_arn    = module.alb.target_group_arn
+#  alb_target_group_arn    = module.alb.target_group_arn
   cpu_utilization_target  = var.cpu_utilization_target
   region                  = var.aws_region
 }
