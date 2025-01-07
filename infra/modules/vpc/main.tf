@@ -22,6 +22,7 @@ resource "aws_internet_gateway" "this" {
   )
 }
 
+
 resource "aws_subnet" "public" {
   for_each = toset(var.public_subnet_cidrs)
 
