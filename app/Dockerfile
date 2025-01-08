@@ -16,10 +16,23 @@ RUN ./mvnw clean package -DskipTests
 
 # Etapa 2: Construir a imagem final
 FROM openjdk:21-jdk-slim
+
+# Criar um grupo e um usuário não privilegiado
+ARG USER_NAME=appuser
+ARG USER_ID=1000
+ARG USER_GROUP=appgroup
+ARG USER_GROUP_ID=1000
+
+RUN groupadd -g ${USER_GROUP_ID} ${USER_GROUP} \
+    && useradd -m -u ${USER_ID} -g ${USER_GROUP} ${USER_NAME}
+
 WORKDIR /app
 
-# Copiar o JAR gerado da etapa anterior
-COPY --from=builder /app/target/*.jar app.jar
+# Copiar o JAR gerado da etapa anterior (e mudar o dono para o usuário criado)
+COPY --from=builder --chown=${USER_NAME}:${USER_GROUP} /app/target/*.jar app.jar
+
+# Mudar para o usuário não privilegiado
+USER ${USER_NAME}
 
 # Expor a porta da aplicação
 EXPOSE 8080
