@@ -28,8 +28,11 @@ RUN groupadd -g ${USER_GROUP_ID} ${USER_GROUP} \
 
 WORKDIR /app
 
-# Copiar o JAR gerado da etapa anterior (e mudar o dono para o usuário criado)
-COPY --from=builder --chown=${USER_NAME}:${USER_GROUP} /app/target/*.jar app.jar
+# Copiar o JAR gerado da etapa anterior (sem alterar as permissões)
+COPY --from=builder /app/target/*.jar app.jar
+
+# Definir permissões somente leitura para o JAR
+RUN chmod a-w app.jar
 
 # Mudar para o usuário não privilegiado
 USER ${USER_NAME}
