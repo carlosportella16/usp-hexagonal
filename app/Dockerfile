@@ -3,7 +3,10 @@ FROM openjdk:21 AS builder
 WORKDIR /app
 
 # Copiar arquivos do projeto para o container
-COPY . .
+COPY pom.xml .
+COPY mvnw .
+COPY .mvn .mvn
+COPY src src
 
 # Verificar a existência do Maven Wrapper e conceder permissões de execução
 RUN ls -la ./mvnw && chmod +x ./mvnw
@@ -12,7 +15,7 @@ RUN ls -la ./mvnw && chmod +x ./mvnw
 RUN ./mvnw clean package -DskipTests
 
 # Etapa 2: Construir a imagem final
-FROM openjdk:21
+FROM openjdk:21-jdk-slim
 WORKDIR /app
 
 # Copiar o JAR gerado da etapa anterior
